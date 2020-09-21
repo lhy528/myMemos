@@ -1,0 +1,10 @@
+* 나중에 등록할 것
+20-09-21 aJax관련 깨달음
+1. ajax통신으로 form 보낼 때 serialize 쓸 경우 
+ 1) data: 변수 그대로, dataType: 'json', contentType: 기본값 ㄱ
+ 2) 컨트롤러에서는 ModelAttribute로 받았다.
+2. 직접 JSON형식의 파일 만들어서 보낼 경우 
+ 1) data: JSON.stringify(변수), dataType: 'json', contentType : 'application/json; charset=UTF-8"
+ 2) 컨트롤러에서는 requestBody로 받았다.
+ 
+ 
