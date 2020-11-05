@@ -1,10 +1,148 @@
 * 나중에 등록할 것
-20-09-21 aJax관련 깨달음
-1. ajax통신으로 form 보낼 때 serialize 쓸 경우 
- 1) data: 변수 그대로, dataType: 'json', contentType: 기본값 ㄱ
- 2) 컨트롤러에서는 ModelAttribute로 받았다.
-2. 직접 JSON형식의 파일 만들어서 보낼 경우 
- 1) data: JSON.stringify(변수), dataType: 'json', contentType : 'application/json; charset=UTF-8"
- 2) 컨트롤러에서는 requestBody로 받았다.
+==========================WEB=====================
+js코드 실행 시점에 대한 공부 필요.
+ - <script type="" src="~~~.js"></script>로 로드된 js 코드
+ - $(function(){
+   });
+ - $(document).ready(function(){
+   });
+ - window.onload = function(){
+   };
  
+Set객체 활용방법 고민
+add함수, has함수, clear함수, delete함수 등
+Set객체에 add하면서 Object 객체에 동시에 관련 값을 담아주고....
+var Arr = [...Set객체];
+
+aJax success, error, beforeSend, complete 모두 이용하면 좋을듯.
+
+동적으로 만들어진 태그는 jQuery가 안먹힌다.
+$(document).on("change", ".className", function(){
+   // "change" 대신에 "click" 등 여러가지 이벤트 핸들러 찾아보자
+});
  
+aJax로 html 붙여야 할 때 append도 좋지만,
+var str = '' 처럼 만들어놓고 
+str += "<tr><td>추가추가</td></tr> // 쭉 담은 후
+$('#id').html(str) 로 붙이면, 깔끔해 보임
+
+==========================/WEB=====================
+==========================mybatis, DB===================== 
+mybatis에서 리스트형 객체를 parameter로 쓸 때
+ 1. 객체 안에 List객체를 넣어놨으면 parameterType에 해당객체, 꺼내쓰는 foreach문 collection에는 해당 List객체이름
+  ※주의사항: 객체가 null이면 문제가 생김. 빈 객체를 컨트롤단에서 넣어주거나 xml에서 널체크 필요
+ 2. 파라미터로 바로 리스트객체를 보낼꺼면 foreach collection에 list, parameterType엔 java.util.List
+
+<foreach collection="cslrList" item="list" open="(" close=")" separator="or">
+ #{list.property}로 뽑아서 씀
+</foreach>
+
+DB에 구분자로 들어가있는 데이터들 받을 때
+ > array_to_string(array_agg(컬럼명) , ',')
+ 
+mybatis에서 공통의 쿼리문이 들어갈 때 xml > mapper > sql태그 활용
+
+MERGE 기본 문법
+		with UPDATE_TARGET AS(
+			update qa_script_report_result
+			set
+				score = #{score2},	
+				re_report_yn = 'Y',
+			comment = #{reportMemo}, deduct_score = #{deductScore}
+			where ucid = #{ucid} and script_code = #{scriptSeq} returning *
+		)
+		insert into qa_script_report_result (ucid ,result_seq, upper_script_code, script_code, score, deduct_score, report_type, re_report_yn, comment) 
+		select #{ucid}, nextval('aicc.qa_script_report_result_seq'::regclass), (select distinct upper_script_code from qa_script_item where script_id = #{scriptSeq}), #{scriptSeq}, #{score2},#{deductScore}, 'EX', 'N', #{reportMemo}
+		where not exists (select * from UPDATE_TARGET)	
+ 
+20-11-05 mybatis로 parameter 객체 들고 update, insert하면서 바로 특정 컬럼 값을 해당 param에 담아서 가져올 수 있다.
+<xml>
+insert, update태그에 useGeneratedKeys="true" keyProperty="param의 property" 추가하면 생성되는 key를 바로 받아올 수 있고,
+특정 컬럼 값을 가져오려면
+  <selectKey keyProperty="param의 property" resultType="자료형 or 객체" order="before 또는 AFTER">
+    select regist_date FROM students WHERE id = #{id}
+    -- 대충 값 하나 가지고 오는 쿼리
+  </selectKey>
+
+==========================/mybatis, DB===================== 
+
+==========================JAVA===================== 
+jsp에서 여러 인풋을 같은 name으로 form을 통해 submit하면 알아서 ',' 구분자로 들어가있다. split해서 쓰자.
+
+배열 파라미터를 보낼 때 컨트롤단에 null체크 하려면
+if(해당객체.isEmpty() ){
+    객체 = new 객체();
+    param.get객체().add(객체);
+}
+
+지금까지 써봤던 aJax통신 데이터 묶음 예시   
+1. 보내는 객체
+   var 객체 = {
+      "property1" : "AAA",
+      "property2" : "BBB"
+   }
+   data:  JSON.stringify(객체)
+   dataType: "json"
+   contentType: "application/json; charset=UTF-8"
+   컨트롤러 @ResponseBody 및 @RequestBody 도메인객체 param
+   return List
+   1) json형식 객체 직접선언 
+   2) JSON.stringify 및 contentType:"application/json; charset=UTF-8"
+   3) @RequestBody 도메인객체 param
+   
+2. 보내는 객체
+   var 객체 = $("#formId").serialize();
+   data: 객체
+   dataType: "json"
+   컨트롤러 public @ResponseBody 및 @ModelAttribute 도메인객체 param
+   리턴 List
+   1) data: form.serialize()
+   2) @ModelAttribute 도메인객체 param
+   
+3. 보내는객체
+   var 객체 = new Object();
+   객체.프로퍼티1 = "AAA"
+   객체.프로퍼티2 = "BBB"
+   data: 객체
+   dataType: "json"
+   컨트롤러 @ResponseBody public ... 및 도메인객체 param
+   return List
+   1) data: new Object해서 프로퍼티 주입
+   2) 도메인객체 param
+   
+4. 보내는객체
+   var 객체 = new Object();
+   객체.프로퍼티 = "AAA"
+   data: JSON.stringify(객체)
+   dataType: "text"
+   contentType: "application/json; charset=UTF-8"
+   컨트롤러 @ResponseBody public... 및 @RequestBody 도메인객체 param
+   return String
+   1) new Object해서 프로퍼티 주입
+   2) data: JSON.stringify(객체) 및 contentType: "application/json; charset=UTF-8"
+   3) @RequestBody 도메인객체 param
+   
+자바단에서 날짜 다루는 방법
+SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+Calendar day = Calendar.getInstance();
+day.add(Calendar.Data, -6); // 날짜객체 6일 감소
+System.out.println(format.format(day.getTime()));
+
+여러 분기점마다 메세지를 담아서 클라이언트까지 유지시키는 코드 예시 (aJax 통신시)
+	@RequestMapping(value="/updateFunc", method = RequestMethod.POST)
+	public @ResponseBody Map<String, Object> updateFunc(HttpSession session, HttpServletRequest request, @RequestBody List<UserFunction> param) throws Exception{
+		Map<String, Object> resultMap = new HashMap<String, Object>();
+		if(param.size() > 0) {
+			int result = roleManageService.updateFunc(param);
+			if(result > 0) {
+				resultMap.put("result", "success");
+				resultMap.put("msg", "등급별 기능을 변경하였습니다.");
+			} else {
+				resultMap.put("result", "false");
+				resultMap.put("msg", "등급별 기능변경에 실패하였습니다.\n관리자에게 문의하세요.");
+			}
+		}
+		return resultMap;
+	}
+ // 클라이언트에선 data.result 및 data.msg로 확인 가능
+==========================/JAVA===================== 
