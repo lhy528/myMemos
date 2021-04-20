@@ -1,0 +1,63 @@
+1. 서비스구현소스에서 특정 Method만 Async처리를 하고 싶었다.
+	public int updateNextApprovalDept(AprvVO aprvVO) throws Exception {
+		// 메일보내기 try-catch
+		int result = docMapper.updateNextApprovalDept(aprvVO); 
+		mailService(aprvVO, false);
+		return result; 
+	}
+여기서, mailService가 SMTP서버에 접근하는 시간때문에 화면에선 클릭한번만 했는데 aJax 통신을 완료할 때까지 3~5초정도 소요됐었음.
+
+인터넷을 찾아보고 @Async 어노테이션을 알아냄, 
+
+public class SpringAsyncConfig {
+
+    @Bean(name = "threadPoolTaskExecutor")
+    public Executor threadPoolTaskExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(3);
+        taskExecutor.setMaxPoolSize(30);
+        taskExecutor.setQueueCapacity(10);
+        taskExecutor.setThreadNamePrefix("Executor-");
+        taskExecutor.initialize();
+        return taskExecutor;
+    }
+
+}
+>> 비동기 Method관련 설정 추가(스프링에서 context찾는 패키지 중 아무데나 두면 됨)
+
+
+	@Async("threadPoolTaskExecutor")
+	public void sendMail(Map<String, Object> param) throws Exception {
+		
+		
+		String docTitle = String.valueOf(param.get("docTitle"));
+		
+		String receiverEmail = String.valueOf(((Map<?,?>)param.get("receiver")).get("email"));
+		String receiverNm = String.valueOf(((Map<?,?>)param.get("receiver")).get("name"));
+		
+		try {
+>> 비동기로 분리하고싶은 Method에 @Async 어노테이션 추가, 괄호안의 String은 바라보게 할 비동기Executor 이름이며 앞서 Config에서 Bean으로 등록해둠
+
+여기까지 해놓고 실행했으나, 아직도 메일보내는게 동기로 처리되고 있었고
+
+구글링을 하던 중 @Async는 AOP방법으로 bean으로 등록된 애들한테만 적용됨을 알게 되었고
+내 코드에선 저 sendMail 메서드가 있는 클래스를 new해서 불러오고있었다.
+			mailTemp.put("sender", sender);
+			mailTemp.put("receiver", receiver);
+//			MailService ms = new MailService(); << 바로 이부분이 문제!
+			ms.sendMail(mailTemp);
+new해서 객체를 직접 불러오면 스프링에서 전혀 관여할 수가 없으므로 MailService 클래스를 bean에 올린다.
+@Service
+public class DocServiceImpl implements DocService {
+	
+	@Autowired
+	private DocMapper docMapper;
+	
+	@Autowired
+	ServletContext context;
+	
+	@Autowired
+	MailService ms; << 이렇게하면 스프링이 주입해주고 bean으로 관리하기떄문에 저 클래스 안의 메서드가 @Async 어노테이션을 갖고있으면 해당 메서드를 다른 쓰레드로 뺀다.
+
+끝.
+	
